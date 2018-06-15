@@ -149,10 +149,11 @@
 
     function WaterFall(opts) {
 
-        EventEmitter.call(this);
+        EventEmitter.call(this);//继承 
 
         this.opts = util.extend({}, this.constructor.defaultopts, opts);
 
+        //追加的碎片的 容器  穿入 selector 或是一个 element 元素
         this._container = typeof this.opts.container === 'string' ? document.querySelector(this.opts.container) : this.opts.container;
         this._pins = typeof this.opts.pins === 'string' ? document.querySelectorAll(this.opts.pins) : this.opts.pins;
         this._loader = typeof this.opts.loader === 'string' ? document.querySelector(this.opts.loader) : this.opts.loader;
@@ -195,12 +196,14 @@
 
     };
 
+    //计算并初始化每列的高度 
     proto.getColumnNum = function() {
         this._unitWidth = this.opts.pinWidth + this.opts.gapWidth;
 
         this._viewPortWidth = window.innerWidth || document.documentElement.clientWidth;
         this._viewPortHeight = window.innerHeight || document.documentElement.clientHeight;
 
+        //计算可以被分割为多少列 其中 如果有 n列 那么就有 n-1 个 gap
         this._num = Math.floor((this._viewPortWidth + this.opts.gapWidth) / this._unitWidth);
 
         // 用于储存每列的高度，起始都为 0
@@ -234,6 +237,7 @@
     // 保证一次只进行一次加载
     var load = false;
 
+    //回调 追加 新的元素
     proto.appendPins = function() {
         if (load) return;
 
@@ -250,6 +254,7 @@
         this.emit("load");
     };
 
+    //传入一个 html String 空格分割元素 选择器选择的是一个图片 的 class 
     proto.append = function(html, selector) {
 
         this._checkResult = [];
@@ -262,16 +267,22 @@
 
         var fragment = document.createDocumentFragment();
 
+        //遍历所有的元素 pins pin 在 初始化的时候有设置
         for (var j = 0, len = children.length; j < len; j++) {
             fragment.appendChild(children[j])
-            this._checkResult[j] = false;
-            this._newPins.push(children[j])
+            this._checkResult[j] = false; //标记
+            this._newPins.push(children[j])//所有的节点会被加入到 _newPins
             this._checkImgHeight(children[j], selector, j)
         }
 
+        //设置完成高度后追加 碎片
         this.isReadyAppend(fragment)
     };
 
+
+    /*这个函数主要是设置图片高度 将图片的高度都设置到 height  属性里面来 设置了一个 定时器和onload 来达到目的
+        同时 将 _checkImgHeight 标记数组  质 为   true
+   */ 
     proto._checkImgHeight = function(childNode, selector, index) {
 
         var startTime = new Date().getTime();
@@ -322,6 +333,7 @@
 
     };
 
+    //设置完成高度属性后开始追加碎片  考虑到设置图片的高度需要异步完成所以 这里校验了 标记数组
     proto.isReadyAppend = function(fragment) {
         // 只有当所有图片都具有高度的时候，才添加进文档树
         var self = this;
@@ -340,6 +352,7 @@
                 self.setPosition(self._newPins);
                 clearTimeout(timer)
             } else {
+                ///持续校验
                 setTimeout(checkAllHaveHeight)
             }
         }
@@ -352,14 +365,14 @@
     proto.setPosition = function(pins) {
 
         for (var i = 0, len = pins.length; i < len; i++) {
-            var min = this.getMin();
+            var min = this.getMin();//获取最小的高度
             var index = util.indexOf(this._columnHeightArr, min);
 
             pins[i].style.left = this._unitWidth * index + 'px';
 
             pins[i].style.top = min + 'px';
 
-            this._columnHeightArr[index] += (pins[i].offsetHeight + this.opts.gapHeight);
+            this._columnHeightArr[index] += (pins[i].offsetHeight + this.opts.gapHeight);//重新更新这列的高度
         }
 
         this._newPins = [];
@@ -404,7 +417,9 @@
      * 只要有空白处，就可以加载新的数据
      */
     proto.checkScroll = function() {
+        //加到最小值大于滚动高度和视口高度和阈值总和的时候不再加载
         if (this.getMin() - (window.pageYOffset || document.documentElement.scrollTop) < this._viewPortHeight + this.opts.threshold) {
+        // if (this.getMin() + this.opts.threshold  > this._viewPortHeight + (window.pageYOffset || document.documentElement.scrollTop)) {
             return true
         }
         return false;
@@ -414,6 +429,7 @@
 
         var self = this;
         console.log(self.checkScroll())
+        //检查是否符合加载规则
         if (self.checkScroll()) {
 
             self.appendPins();
